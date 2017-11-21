@@ -173,7 +173,7 @@ mab@mab-infra:~$
 ```
 
 - Check that device is mounted on ODL :
-	- By going to the API doc explorer of the controller (http://localhost:8181/apidoc/explorer) you get the list of mounted devices as well as all the auto-generated RESTCONF methods based on the YANG modules of the devices. This is done via [Swagger](https://swagger.io/)
+	- By going to the API doc explorer of the controller (http://localhost:8181/apidoc/explorer) you get the list of mounted devices as well as all the auto-generated RESTCONF methods based on the YANG modules of the devices. This is done via [Swagger](https://swagger.io/).
 
 ![odl_mounted_device_vyatta1](images/odl_mounted_device_vyatta1.png)
 
@@ -242,7 +242,7 @@ mab@mab-infra:~$
 ```
 
 - Check that device is mounted on ODL :
-	- By going to the API doc explorer of the controller (http://localhost:8181/apidoc/explorer) you get the list of mounted devices as well as all the auto-generated RESTCONF methods based on the YANG modules of the devices. This is done via [Swagger](https://swagger.io/)
+	- By going to the API doc explorer of the controller (http://localhost:8181/apidoc/explorer) you get the list of mounted devices as well as all the auto-generated RESTCONF methods based on the YANG modules of the devices. This is done via [Swagger](https://swagger.io/).
 
 
 - Executes the unmount workflow:

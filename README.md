@@ -14,6 +14,15 @@
 - The content of this pack acts as a so called “SDN app” in the ODL nomenclature, in the sense where it consumes the ODL Northbound API (RESTCONF) to manipulate configuration and obtain states from the network. And because ODL is by nature multivendor, this can allow for multivendor network automation.
 - For more information check the following links:
 
+## ODL Northbound API: RESTCONF
+- OpenDayLight exposes a northbound API based on RESTCONF.
+- RESTCONF is based on [IETF RFC 8040](https://tools.ietf.org/html/rfc8040)
+- RESTCONF extends the idea of NETCONF, by relying on a REST API type of access.
+- Model definition in YANG
+- JSON or XML are used for data representation
+- RESTCONF defines how a YANG model is mapped to a RESTful interface, specifically:
+  - how to modify the data by using REST verbs (GET / PUT / PATCH / …)
+  - how to construct URIs to access the model / data
 
 ## How to Start/Stop the ODL conntroller:
 
@@ -67,14 +76,4 @@ nov. 20 16:58:53 mab-infra systemd[1]: Started brcd-ui.service.
 mab@mab-infra:~$
 ```
 
-## ODL Northbound API: RESTCONF
 
-- OpenDayLight exposes a northbound API based on RESTCONF.
-- RESTCONF is based on [IETF RFC 8040](https://tools.ietf.org/html/rfc8040)
-- RESTCONF extends the idea of NETCONF, by relying on a REST API type of access.
-- Model definition in YANG
-- JSON or XML are used for data representation
-
-- RESTCONF defines how a YANG model is mapped to a RESTful interface, specifically:
-  - how to modify the data by using REST verbs (GET / PUT / PATCH / …)
-  - how to construct URIs to access the model / data
