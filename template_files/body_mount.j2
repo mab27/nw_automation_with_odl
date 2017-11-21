@@ -1,0 +1,9 @@
+<node xmlns="urn:TBD:params:xml:ns:yang:network-topology">
+	<node-id>{{ device_name }}</node-id>
+	<host xmlns="urn:opendaylight:netconf-node-topology">{{ device_ip }}</host>
+	<port xmlns="urn:opendaylight:netconf-node-topology">{{ device_ssh_port }}</port>
+	<username xmlns="urn:opendaylight:netconf-node-topology">{{ device_username }}</username>
+	<password xmlns="urn:opendaylight:netconf-node-topology">{{ device_password }}</password>
+	<tcp-only xmlns="urn:opendaylight:netconf-node-topology">false</tcp-only>
+	<keepalive-delay xmlns="urn:opendaylight:netconf-node-topology">0</keepalive-delay>
+</node>

@@ -1,0 +1,369 @@
+module vyatta-service-nat-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-service-nat:1";
+	prefix vyatta-service-nat-v1;
+
+	import vyatta-services-v1 {
+		prefix service;
+	}
+	import configd-v1 {
+		prefix configd;
+	}
+	import vyatta-types-v1 {
+		prefix types;
+	}
+	import vyatta-fw-types-v1 {
+		prefix fw-types;
+	}
+	import vyatta-npf-v1 {
+		prefix npf;
+	}
+	import vyatta-resources-v1 {
+		prefix resources;
+	}
+	import vyatta-resources-group-v1 {
+		prefix res-group;
+	}
+
+	organization "Brocade Communications Systems, Inc.";
+	contact
+		"Brocade Communications Systems, Inc.
+		 Postal: 130 Holger Way
+			 San Jose, CA 95134
+		 E-mail: support@Brocade.com
+		 Web: www.brocade.com";
+
+	description
+		"Copyright (c) 2014-2016 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 YANG module and scripts for Vyatta NAT configuration and operation";
+
+	revision 2016-11-04 {
+		description "Add a resource group option to S/DNAT rule translation address";
+	}
+	revision 2016-09-30 {
+		description "Allow ports for UDP-Lite/DCCP/SCTP.
+			     Remove TCP/UDP port requirement.";
+	}
+	revision 2016-09-12 {
+		description "Adding warning script validation for interface leaves.";
+	}
+	revision 2016-08-24 {
+		description "Add descriptions to many nodes.
+			     Update to make use of common types, 'must',
+			     and remove use of validate and scripts";
+	}
+	revision 2015-09-29 {
+		description "Initial revision.";
+	}
+
+	typedef ipv6-prefix-nat64 {
+		type types:ipv6-prefix {
+			configd:pattern-help "<x> must be 32,40,48,56,64, or 96";
+			pattern '.*/(32|4[08]|56|64|96)' {
+				error-message "Must be <IPv6-address>/<x>, where <x> is 32,40,48,56,64 or 96";
+			}
+		}
+	}
+
+	typedef ipv4-addr-range {
+		type string {
+			pattern '(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}'
+                                +  '([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])-'
+				+ '(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}'
+                                +  '([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])';
+			configd:pattern-help "<x.x.x.x>-<x.x.x.x>";
+			configd:syntax 'vyatta-validate-type ipv4range $VAR(@)';
+			configd:help "Range of IPv4 addresses";
+		}
+	}
+
+	typedef dnat-trans-addr {
+		type union {
+			type types:ipv4-address {
+				configd:help "IPv4 address to translate to";
+			}
+			type types:ipv4-prefix {
+				configd:help "IPv4 subnet to translate to";
+			}
+			type ipv4-addr-range {
+				configd:help "IPv4 address range to translate to";
+			}
+			type fw-types:group-name {
+				configd:help "Resource address-group for translations";
+			}
+		}
+	}
+
+	typedef snat-trans-addr {
+		type union {
+			type dnat-trans-addr;
+			type enumeration {
+				enum masquerade {
+					description "Use IPv4 address of the interface";
+					configd:help "Use IPv4 address of the interface";
+				}
+			}
+		}
+	}
+
+	typedef trans-port {
+		type union {
+			type fw-types:service-name;
+			type types:port;
+			type types:port-range;
+		}
+	}
+
+	grouping rule-ipv4-address {
+		leaf address {
+			// If not an IPv4 address, then check it is a valid address group
+			must "contains(current(), '.') or (current() = /resources:resources/res-group:group/res-group:address-group/res-group:tagnode)" {
+				error-message "Address group has not been configured";
+			}
+			type fw-types:fw-ipv4-address;
+			description "IPv4 address, subnet, or address-group";
+			configd:help "IPv4 address, subnet, or address-group";
+			configd:allowed "echo $VAR(/resources/group/address-group/@@)";
+		}
+	}
+
+	grouping nat-rule-trans-port {
+		leaf port {
+			type trans-port;
+			description "Translation port";
+			configd:help "Translation port";
+			must	"(../../protocol = 'tcp') or (../../protocol = 6) or " +
+				"(../../protocol = 'udp') or (../../protocol = 17) or " +
+				"(../../protocol = 'dccp') or (../../protocol = 33) or " +
+				"(../../protocol = 'udplite') or (../../protocol = 136)"	{
+				error-message "Only TCP/UDP/UDP-Lite/DCCP allow a translation port";
+			}
+		}
+	}
+
+	grouping nat-rule-exclude {
+		leaf exclude {
+			must "not(../translation/address)" {
+				error-message "A translation address cannot be defined when using 'exclude'";
+			}
+			// Note: should also not allow translation port, but that validation script had a
+			// bug which meant it did not work - should add check when can implement Yang
+			// version incompatible changes.
+			type empty;
+			description "Exclude from NAT";
+			configd:help "Exclude from NAT";
+		}
+	}
+
+
+	grouping nat-rule-source {
+		container source {
+			presence "true";
+			description "NAT source parameters";
+			configd:help "NAT source parameters";
+			uses rule-ipv4-address;
+			uses npf:rule-port;
+		}
+	}
+
+	grouping nat-rule-destination {
+		container destination {
+			presence "true";
+			description "NAT destination parameters";
+			configd:help "NAT destination parameters";
+			uses rule-ipv4-address;
+			uses npf:rule-port;
+		}
+	}
+
+	grouping nat-rule-protocol {
+		uses npf:rule-protocol {
+			refine protocol {
+				description "Protocol to NAT";
+				configd:help "Protocol to NAT";
+			}
+		}
+	}
+
+	augment /service:service {
+		container nat {
+			presence "true";
+			configd:priority "310";
+			description "Network Address Translation (NAT)";
+			configd:help "Network Address Translation (NAT)";
+			configd:end "vyatta-dp-npf.pl --cmd=commit";
+			container ipv6-to-ipv4 {
+				presence "true";
+				description "IPv6 to IPv4 NAT settings";
+				configd:help "IPv6 to IPv4 NAT settings";
+				configd:end "vyatta-dp-npf-nat.pl --type=ipv6-to-ipv4";
+				list rule {
+					description "Rule number";
+					configd:help "Rule number";
+					key "tagnode";
+					leaf tagnode {
+						type fw-types:rule-number;
+					}
+					leaf inbound-interface {
+						type string;
+						configd:allowed "vyatta-interfaces.pl --show dataplane,bonding";
+						description "Interface to initiate a IPv6 to IPv4 session";
+						configd:help "Interface to initiate a IPv6 to IPv4 session";
+						configd:validate "check-interface-exists.pl $VAR(@)";
+						mandatory true;
+					}
+					container source {
+						description "Source IPv6 prefix";
+						configd:help "Source IPv6 prefix";
+						leaf prefix {
+							description "Source IPv6 prefix";
+							configd:help "Source IPv6 prefix";
+							type ipv6-prefix-nat64;
+							mandatory true;
+						}
+					}
+					container destination {
+						description "Destination IPv6 prefix";
+						configd:help "Destination IPv6 prefix";
+						leaf prefix {
+							description "Destination IPv6 prefix";
+							configd:help "Destination IPv6 prefix";
+							type ipv6-prefix-nat64;
+							mandatory true;
+						}
+					}				     
+				}
+			}
+			container source {
+				presence "true";
+				description "Source NAT settings";
+				configd:help "Source NAT settings";
+				configd:end "vyatta-dp-npf-nat.pl --type=source";
+				list rule {
+					description "Rule number";
+					configd:help "Rule number";
+					key "tagnode";
+					must "translation/address or translation/port or exclude" {
+						error-message "Must set translation address and/or port or exclude";
+					}
+					leaf tagnode {
+						type fw-types:rule-number;
+					}
+					leaf description {
+						type string;
+						description "Rule description";
+						configd:help "Rule description";
+					}
+					uses nat-rule-exclude;
+					leaf disable {
+						type empty;
+						description "Disable NAT rule";
+						configd:help "Disable NAT rule";
+					}
+					uses nat-rule-source;
+					leaf log {
+						type empty;
+						description "Enable logging for NAT rule";
+						configd:help "Enable logging for NAT rule";
+					}
+					uses nat-rule-destination;
+					container translation {
+						presence "true";
+						description "Outside NAT IP (used by source NAT only)";
+						configd:help "Outside NAT IP (used by source NAT only)";
+
+						leaf address {
+							type snat-trans-addr;
+							description "Translation IP address, address-group, or range";
+							configd:help "Translation IP address, address-group, or range";
+							configd:allowed "echo $VAR(/resources/group/address-group/@@)";
+							// If not an IPv4 address, then check it is a valid address group
+							must "contains(current(), '.') or (current() = 'masquerade') or
+									(current() = /resources:resources/res-group:group/res-group:address-group/res-group:tagnode)" {
+								error-message "Address group has not been configured";
+							}
+						}
+						uses nat-rule-trans-port;
+					}
+					leaf outbound-interface {
+						type string;
+						description "Outbound interface for NAT traffic";
+						configd:help "Outbound interface for NAT traffic";
+						configd:allowed "vyatta-interfaces.pl --show dataplane,bonding";
+						configd:validate "check-interface-exists.pl $VAR(@)";
+						mandatory true;
+					}
+					uses nat-rule-protocol;
+				}
+			}
+			container destination {
+				presence "true";
+				description "Destination NAT settings";
+				configd:help "Destination NAT settings";
+				configd:end "vyatta-dp-npf-nat.pl --type=destination";
+				list rule {
+					description "Rule number";
+					configd:help "Rule number";
+					key "tagnode";
+					// Note: should also have following "must" check (it is done for source nat),
+					// but the check was missing in a previous release, and to add it will make
+					// the yang not backward compatible - can be added when can implement Yang 
+					// version incompatible changes.
+					//
+					// must "translation/address or translation/port or exclude" {
+					//	error-message "Must set translation address and/or port or exclude";
+					// }
+					leaf tagnode {
+						type fw-types:rule-number;
+					}
+					leaf description {
+						type string;
+						description "Rule description";
+						configd:help "Rule description";
+					}
+					uses nat-rule-exclude;
+					leaf disable {
+						type empty;
+						description "Disable NAT rule";
+						configd:help "Disable NAT rule";
+					}
+					leaf inbound-interface {
+						type string;
+						description "Inbound interface of NAT traffic";
+						configd:help "Inbound interface of NAT traffic";
+						configd:allowed "vyatta-interfaces.pl --show dataplane,bonding";
+						configd:validate "check-interface-exists.pl $VAR(@)";
+						mandatory true;
+					}
+					uses nat-rule-source;
+					leaf log {
+						type empty;
+						description "Enable logging for NAT rule";
+						configd:help "Enable logging for NAT rule";
+					}
+					uses nat-rule-destination;
+					container translation {
+						presence "true";
+						description "Inside NAT IP (used by destination NAT only)";
+						configd:help "Inside NAT IP (used by destination NAT only)";
+
+						leaf address {
+							type dnat-trans-addr;
+							description "Translation IP address, address-group, or range";
+							configd:help "Translation IP address, address-group, or range";
+							configd:allowed "echo $VAR(/resources/group/address-group/@@)";
+							// If not an IPv4 address, then check it is a valid address group
+							must "contains(current(), '.') or (current() = 'masquerade') or
+									(current() = /resources:resources/res-group:group/res-group:address-group/res-group:tagnode)" {
+								error-message "Address group has not been configured";
+							}
+						}
+						uses nat-rule-trans-port;
+					}
+					uses nat-rule-protocol;
+				}
+			}
+		}
+	}
+}

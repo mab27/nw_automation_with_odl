@@ -1,0 +1,50 @@
+---
+  version: '2.0'
+
+  odl.unmount:
+
+    input:
+      - controller_ip
+      - controller_username
+      - controller_password
+      - device_name
+
+    type: direct
+
+    tasks:
+
+      send_test_call:
+        action: "core.http"
+        input:
+          method: "GET"
+          username: "<% $.controller_username %>"
+          password: "<% $.controller_password %>"
+          url: "http://<% $.controller_ip %>:8181/restconf/modules"
+        on-success:
+          - render_url: "<% task(send_test_call).result.status_code = 200 %>"
+          - controller_not_reachable: "<% task(send_test_call).result.status_code != 200 %>"
+
+      render_url:
+        action: "default.render"
+        input:
+          path_to_template: "/home/mab/mab_automate/nw_automation_with_odl/template_files/url_mount.j2"
+          context: "<% dict(controller_ip=>$.controller_ip, device_name=>$.device_name) %>"
+        publish:
+          rendered_url: <% task('render_url').result.result %>
+        on-success:
+          - send_call
+
+      send_call:
+        action: "core.http"
+        input:
+          method: "DELETE"
+          username: "<% $.controller_username %>"
+          password: "<% $.controller_password %>"
+          url: "<% $.rendered_url %>"
+          headers: {"accept": "application/xml", "content-type": "application/xml"}
+
+      controller_not_reachable:
+        action: "core.local"
+        input:
+          cmd: "echo Controller not reachable at address: <% $.controller_ip %>"
+

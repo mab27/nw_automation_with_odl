@@ -1,0 +1,400 @@
+module vyatta-protocols-mpls-ldp-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-protocols-mpls-ldp:1";
+	prefix protocols-mpls-ldp;
+
+	import configd-v1 {
+		prefix configd;
+	}
+
+	import vyatta-types-v1 {
+		prefix types;
+	}
+
+	import vyatta-policy-v1 {
+		prefix policy;
+	}
+
+	import vyatta-policy-route-v1 {
+		prefix policy-route;
+	}
+
+	import vyatta-protocols-v1 {
+		 prefix protocols;
+	}
+
+	import vyatta-protocols-interface-validation-mpls-v1 {
+		prefix if-validation;
+	}
+
+	organization "Brocade Communications Systems, Inc.";
+	contact
+		"Brocade Communications Systems, Inc.
+		 Postal: 130 Holger Way
+		 San Jose, CA 95134
+		 E-mail: support@Brocade.com
+		 Web: www.brocade.com";
+
+	description
+		"Copyright (c) 2016 IETF Trust and the persons identified
+		as authors of the code.  All rights reserved.
+
+		Redistribution and use in source and binary forms, with or
+		without modification, is permitted pursuant to, and subject
+		to the license terms contained in, the Simplified BSD License
+		set forth in Section 4.c of the IETF Trust's Legal Provisions
+		Relating to IETF Documents
+		(http://trustee.ietf.org/license-info).
+
+		This version of this YANG module is derived from IETF Draft
+		draft-raza-mpls-ldp-mldp-yang-03.";
+
+	revision 2015-03-05 {
+		description "initial revision";
+	}
+
+	/*
+	 * Typedefs
+	 */
+
+	typedef prefix-list-ref {
+		type leafref {
+			path "/policy:policy/policy-route:route/policy-route:prefix-list/policy-route:tagnode";
+		}
+		description "A type for a reference to a prefix list.";
+	}
+
+	/*
+	 * Groupings
+	 */
+
+	grouping basic-discovery-timers {
+		configd:help
+			"Basic discovery timer attributes.";
+		leaf hello-holdtime {
+			type uint16 {
+				range 15..3600;
+			}
+			units seconds;
+			default 15;
+			configd:help "LDP link Hello hold time (seconds)";
+			description
+				"The time interval for which a LDP link Hello adjacency
+				is maintained in the absence of link Hello messages from
+				the LDP neighbor";
+		}
+		leaf hello-interval {
+			type uint16 {
+				range 5..1200;
+			}
+			units seconds;
+			default 5;
+			configd:help "LDP link Hello interval (seconds)";
+			description
+				"The interval between consecutive LDP link Hello messages
+				used in basic LDP discovery";
+		}
+	} // basic-discovery-timers
+
+	grouping extended-discovery-timers {
+		description "Extended discovery timer attributes.";
+		uses basic-discovery-timers {
+			refine hello-holdtime {
+				default 45;
+			}
+			refine hello-interval {
+				default 15;
+			}
+		}
+	} // extended-discovery-timers
+
+	grouping graceful-restart-attributes {
+		description "Graceful restart configuration attributes.";
+		container graceful-restart {
+			presence "Present to enable graceful-restart.";
+			configd:help "Attributes for graceful restart.";
+			leaf helper-enable {
+				type empty;
+				configd:help "Enable graceful restart helper mode.";
+			}
+			leaf reconnect-time {
+				type uint16 {
+					range 10..1800;
+				}
+				units seconds;
+				configd:help "Interval until which LDP waits for Peer Restart (seconds)";
+				description
+					"Specifies the time interval that the remote LDP peer
+					must wait for the local LDP peer to reconnect after the
+					remote peer detects the LDP communication failure.";
+			}
+			leaf recovery-time {
+				type uint16 {
+					range 30..3600;
+				}
+				units seconds;
+				configd:help "Interval until which LDP preserves routes after
+											Peer Restart (seconds)";
+				description
+					"Specifies the maximum time that stale label FEC bindings
+					are retained.";
+			}
+		} // graceful-restart
+	} // graceful-restart-attributes
+
+	grouping neighbor-attributes {
+		description "Neighbor configuration attributes.";
+		leaf session-ka-holdtime {
+			type uint16 {
+				range 30..3600;
+			}
+			units seconds;
+			default 30;
+			configd:help "LDP session keepalive hold time (seconds)";
+			description
+				"The time interval after which an inactive LDP session
+				terminates and the corresponding TCP session closes.
+				Inactivity is defined as not receiving LDP packets from the
+				neighbor.";
+		}
+		leaf session-ka-interval {
+			type uint16 {
+				range 10..1200;
+			}
+			units seconds;
+			default 10;
+			configd:help "LDP session keepalive interval (seconds)";
+			description
+				"The interval between successive transmissions of keepalive
+				packets. Keepalive packets are only sent in the absence of
+				other LDP packets transmitted over the LDP session.";
+		}
+	} // neighbor-attributes
+
+	grouping neighbor-authentication {
+		description "Neighbor authentication attributes.";
+		leaf md5-password {
+			type string {
+				length "1..80";
+			}
+			configd:secret "true";
+			configd:help "Assigns an encrypted MD5 password to an LDP neighbor";
+		} // md5-password
+	} // neighbor-authentication
+
+	grouping global-attributes {
+		description "Configuration attributes at global level.";
+
+		uses graceful-restart-attributes;
+
+	} // global-attributes
+
+	grouping label-policy-advertise-attributes {
+		container advertise {
+			configd:help "Label advertising policies.";
+			leaf explicit-null {
+				type empty;
+				configd:help "Send Explicit Null Label";
+				description
+					"Enables an egress router to advertise an
+					explicit null label (value 0) in place of an
+					implicit null label (value 3) to the
+					penultimate hop router.";
+			}
+			leaf prefix-list {
+				type prefix-list-ref;
+				configd:help
+					"Applies the prefix list to outgoing label advertisements.";
+			}
+		}
+	}
+
+	grouping policy-attributes {
+		description "LDP policy attributes.";
+		container label-policy {
+			configd:help "Label policy attributes.";
+			uses label-policy-advertise-attributes;
+			leaf distribution-control-mode {
+				type enumeration {
+					enum independent {
+						configd:help "Independent label mode.";
+						description "Enables independent label
+							mode where a label mapping to
+							a FEC is advertised as long
+							as a RIB entry exists for the
+							FEC.";
+					}
+					enum ordered {
+						configd:help "Ordered label mode.";
+						description "Enables ordered label mode
+							where a label mapping to a FEC
+							is advertised if this is an
+							egress LSR or a label binding
+							for the FEC has been received.";
+					}
+				}
+				default independent;
+				configd:help "Label distribution control mode.";
+			} // distribution-control-mode
+		} // label-policy
+	} // policy-attributes
+
+	/*
+	 * Configuration data nodes
+	 */
+	augment /protocols:protocols {
+		description "LDP augmentation.";
+		container mpls-ldp {
+			configd:priority "640";
+			configd:help "MPLS Label Distribution Protocol (LDP)";
+			configd:end "vyatta-mpls-ldp.pl --proto";
+			presence "Present for MPLS LDP configuration.";
+
+			uses global-attributes;
+
+			leaf lsr-id {
+				type types:ipv4-address;
+				configd:help "Router ID.";
+			}
+			container address-family {
+				configd:help "Per-vrf per-af params.";
+				container ipv4 {
+					configd:help
+						"IPv4 address family.";
+					uses policy-attributes;
+					leaf transport-address {
+						type types:ipv4-address;
+						configd:help
+							"The transport address advertised in LDP Hello
+							messages.";
+					}
+				} // ipv4
+			}
+			container discovery {
+				configd:help "Neighbor discovery configuration.";
+				container interfaces {
+					configd:help "A list of interfaces for basic discovery.";
+					uses basic-discovery-timers;
+					must "hello-holdtime >= (hello-interval * 3)" {
+						error-message "Discovery hello-holdtime must be at least 3x hello-interval.";
+					}
+					list interface {
+						key "interface";
+						configd:help "List of LDP interfaces.";
+						configd:end "vyatta-mpls.pl --dev=$VAR(@)";
+						uses if-validation:interface-mpls;
+						uses basic-discovery-timers;
+						must "hello-holdtime >= (hello-interval * 3)" {
+							error-message "Interface hello-holdtime must be at least 3x hello-interval.";
+						}
+						uses neighbor-attributes;
+						must "session-ka-holdtime >= (session-ka-interval * 3) or " +
+							"/protocols/mpls-ldp/neighbors/session-ka-holdtime >= (session-ka-interval * 3)" {
+							error-message "Interface session hello-holdtime must be at least 3x hello-interval.";
+						}
+						leaf igp-synchronization-delay {
+							type uint16 {
+								range 3..60;
+							}
+							units seconds;
+							configd:help "LDP IGP Synchronization delay (seconds)";
+							description
+								"Sets the interval that the LDP waits before
+								 notifying the Interior Gateway Protocol (IGP) that
+								 label exchange is completed so that IGP can start
+								 advertising the normal metric for the link.";
+						}
+						container address-family {
+							configd:help "LDP address-family parameters";
+							leaf ipv4 {
+								type empty;
+								description
+									"IPv4 address family.";
+								configd:help
+									"Enable IPv4 address family on the interface.";
+							}
+						}
+					} // list interface
+				} // interfaces
+			} // discovery
+			container neighbors {
+				configd:help "Neighbors configuration attributes.";
+				list neighbor {
+					key "lsr-id";
+					configd:help "List of neighbors.";
+
+					leaf lsr-id {
+						type types:ipv4-address;
+						configd:help "List of neighbors.";
+					}
+					uses neighbor-authentication;
+				}
+				uses neighbor-attributes;
+				must "session-ka-holdtime >= (session-ka-interval * 3)" {
+					error-message "Session hello-holdtime must be at least 3x hello-interval.";
+				}
+				leaf session-downstream-on-demand {
+					configd:help "Session downstream-on-demand attributes.";
+					type empty;
+				}
+			} // neighbors
+			container log {
+				configd:help "LDP logging parameters";
+				leaf dsm {
+					type empty;
+					configd:help "Enable LDP DSM logs";
+				}
+				leaf events {
+					type empty;
+					configd:help "Enable LDP events logs";
+				}
+				leaf fsm {
+					type empty;
+					configd:help "Enable LDP FSM logs";
+				}
+				leaf nsm {
+					type empty;
+					configd:help "Enable LDP NSM logs";
+				}
+				container packet {
+					configd:help "LDP packet logs";
+					leaf address {
+						type empty;
+						configd:help "Enable LDP ls-ack packet logs";
+					}
+					leaf all {
+						type empty;
+						configd:help "Enable LDP all packet logs";
+					}
+					leaf hello {
+						type empty;
+						configd:help "Enable LDP hello packet logs";
+					}
+					leaf init {
+						type empty;
+						configd:help "Enable LDP initialization packet logs";
+					}
+					leaf keepalive {
+						type empty;
+						configd:help "Enable LDP keepalive packet logs";
+					}
+					leaf label {
+						type empty;
+						configd:help "Enable LDP label packet logs";
+					}
+					leaf notification {
+						type empty;
+						configd:help "Enable LDP notification packet logs";
+					}
+				} // packet
+				leaf rib {
+					type empty;
+					configd:help "Enable LDP RIB logs";
+				}
+				leaf usm {
+					type empty;
+					configd:help "Enable LDP USM logs";
+				}
+			} // log
+		} // container ldp
+	}
+}

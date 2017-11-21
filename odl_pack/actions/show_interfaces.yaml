@@ -1,0 +1,32 @@
+---
+name: "show_interfaces"
+pack: "odl"
+description: "Show Interfaces"
+runner_type: "mistral-v2"
+enabled: true
+entry_point: "workflows/show_interfaces.yaml"
+parameters:
+    controller_ip:
+        type: string
+        description: IP address of ODL controller
+        required: true
+        default: localhost
+        position: 0
+    controller_username:
+        type: string
+        description: Username of ODL controller
+        required: true
+        default: admin
+        position: 1
+    controller_password:
+        type: string
+        description: Password of ODL controller
+        required: true
+        default: admin
+        secret: true
+        position: 2
+    device_name:
+        type: string
+        description: Name of the mounted device
+        required: true
+        position: 3

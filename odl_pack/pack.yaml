@@ -1,0 +1,9 @@
+---
+name: odl
+description: Integration with OpenDayLoght controller
+keywords:
+    - networking
+    - ODL
+version: 0.1.0
+author: mab27
+email: mabdelou@extremenetworks.com

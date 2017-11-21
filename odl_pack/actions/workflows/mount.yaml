@@ -1,0 +1,65 @@
+---
+  version: '2.0'
+
+  odl.mount:
+
+    input:
+      - controller_ip
+      - controller_username
+      - controller_password
+      - device_name
+      - device_ip
+      - device_username
+      - device_password
+      - device_ssh_port
+
+    type: direct
+
+    tasks:
+
+      send_test_call:
+        action: "core.http"
+        input:
+          method: "GET"
+          username: "<% $.controller_username %>"
+          password: "<% $.controller_password %>"
+          url: "http://<% $.controller_ip %>:8181/restconf/modules"
+        on-success:
+          - render_url: "<% task(send_test_call).result.status_code = 200 %>"
+          - controller_not_reachable: "<% task(send_test_call).result.status_code != 200 %>"
+
+      render_url:
+        action: "default.render"
+        input:
+          path_to_template: "/home/mab/mab_automate/nw_automation_with_odl/template_files/url_mount.j2"
+          context: "<% dict(controller_ip=>$.controller_ip, device_name=>$.device_name) %>"
+        publish:
+          rendered_url: <% task('render_url').result.result %>
+        on-success:
+          - render_body
+
+      render_body:
+        action: "default.render"
+        input:
+          path_to_template: "/home/mab/mab_automate/nw_automation_with_odl/template_files/body_mount.j2"
+          context: "<% dict(device_name=>$.device_name, device_ip=>$.device_ip, device_ssh_port=>$.device_ssh_port, device_username=>$.device_username, device_password=>$.device_password) %>"
+        publish:
+          rendered_body: <% task('render_body').result.result %>
+        on-success:
+          - send_call
+
+      send_call:
+        action: "core.http"
+        input:
+          method: "PUT"
+          username: "<% $.controller_username %>"
+          password: "<% $.controller_password %>"
+          url: "<% $.rendered_url %>"
+          body: "<% $.rendered_body %>"
+          headers: {"accept": "application/xml", "content-type": "application/xml"}
+
+      controller_not_reachable:
+        action: "core.local"
+        input:
+          cmd: "echo Controller not reachable at address: <% $.controller_ip %>"
+

@@ -1,0 +1,80 @@
+module vyatta-xconnect-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-xconnect:1";
+	prefix vyatta-xconnect-v1;
+
+	import configd-v1 {
+		prefix configd;
+	}
+	import vyatta-interfaces-dataplane-v1 {
+		prefix interfaces-dataplane;
+	}
+
+	organization "Brocade Communications Systems, Inc.";
+	contact
+		"Brocade Communications Systems, Inc.
+		 Postal: 130 Holger Way
+		 	 San Jose, CA 95134
+		 E-mail: support@Brocade.com
+		 Web: www.brocade.com";
+
+	description
+		"Copyright (c) 2015-2016 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 The YANG module for vyatta-xconnect-v1";
+
+	revision 2016-06-17 {
+		description "Add configd pattern help for vhost interface.";
+	}
+
+	revision 2016-03-16 {
+		description "Single quote the regex patterns";
+	}
+
+	revision 2015-12-07 {
+		description "Initial revision of version 1.";
+	}
+
+	grouping xconnect-if-binding {
+		container xconnect {
+			configd:help "Cross-Connect Interface Binding";
+			configd:priority "525";
+			configd:end "/opt/vyatta/share/tmplscripts/interfaces/dataplane/xconnect/configd_end.sh";
+			configd:validate "/opt/vyatta/share/tmplscripts/interfaces/dataplane/xconnect/configd_validate.cli";
+			leaf ttl {
+				type uint8 {
+					range 1..127;
+				}
+				configd:help "TTL value";
+			}
+			leaf l2tpeth {
+				type string {
+					pattern 'lttp[0-9]+';
+					configd:pattern-help "<lttpN>";
+				}
+				configd:help "L2tpeth interface name";
+				configd:validate "/opt/vyatta/share/tmplscripts/interfaces/dataplane/xconnect/l2tpeth/configd_validate1.cli";
+			}
+			leaf dataplane {
+				configd:help "Dataplane interface name";
+				type union {
+				     type interfaces-dataplane:dataplane-ifname;
+				     type interfaces-dataplane:dataplane-vifname;
+				}
+			}
+			leaf vhost {
+				configd:help "Virtio vhost devices";
+				type union {
+				     type string {
+				     	  pattern 'dp[0-9]+vhost[0-9]+';
+				     	  configd:pattern-help "<dpNvhostN>";
+				     }
+				     type string {
+				     	  pattern 'dp[0-9]+vhost[0-9]+\.[1-9][0-9]*';
+				     	  configd:pattern-help "<dpNvhostN.N>";
+				     }
+				}
+			}
+		}
+	}
+}

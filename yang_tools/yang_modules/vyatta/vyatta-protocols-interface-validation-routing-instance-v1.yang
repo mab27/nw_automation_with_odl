@@ -1,0 +1,70 @@
+module vyatta-protocols-interface-validation-routing-instance-v1 {
+	namespace "urn:vyatta.com:mgmt:vyatta-protocols-interface-validation-routing-instance:1";
+	prefix vyatta-protocols-interface-validation-routing-instance-v1;
+
+	import vyatta-interfaces-v1 {
+		prefix if;
+	}
+	import vyatta-routing-instance-interfaces-v1 {
+		prefix vyatta-routing-instance-if-v1;
+	}
+
+	organization "Brocade Communications Systems, Inc.";
+	contact
+		"Brocade Communications Systems, Inc.
+		 Postal: 130 Holger Way
+		         San Jose, CA 95134
+		 E-mail: support@Brocade.com
+		 Web: www.brocade.com";
+
+	description
+		"Copyright (c) 2016 by Brocade Communications Systems, Inc.
+		 All rights reserved.
+
+		 The YANG module package for
+		 vyatta-protocols-interface-validation-routing-instance-v1";
+
+	revision 2016-05-25 {
+		description "Initial revision of version 1";
+	}
+
+	/*
+	 * The following groupings originate from OSPFv2/v3 protocols.
+	 * Other protocols are free to use them or embed their
+	 * own "must" statements.
+	 */
+	grouping ospf-passive-intf-routing-inst {
+		leaf-list passive-interface {
+			/*
+			 * Leafref uses relative path, used in both OSPF and
+			 * OSPFv3 - re-use grouping with caution.
+			 */
+			type string;
+			ordered-by "user";
+			must "not( (current() = 'default') and (count(../passive-interface) > 1))" {
+				error-message "Can't configure passive-interface 'default' with other interfaces";
+			}
+			must "((current() = 'default') or (current() = /if:interfaces/*/*[(local-name(.) = 'tagnode') or (local-name(.) = 'ifname')] "
+			+ "or /if:interfaces/*/*[local-name(.) = 'vif'][./../* = substring-before(current(), '.')]"
+			+ "/*[(local-name(.) = 'tagnode') or (local-name(.) = 'ifname')][. = substring-after(current(), '.')]))" {
+				error-message "Invalid interface name";
+			}
+		}
+	}
+
+	grouping ospf-passive-intf-exclude-routing-inst {
+		leaf-list passive-interface-exclude {
+			/*
+			 * Leafref uses relative path, used in both OSPF and
+			 * OSPFv3 - re-use grouping with caution.
+			 */
+			type leafref {
+				path "../../../../vyatta-routing-instance-if-v1:interface/vyatta-routing-instance-if-v1:name";
+			}
+			ordered-by "user";
+			must "(../passive-interface = 'default')" {
+				error-message "Can't configure passive-interface-exclude without configuring passive-interface 'default'";
+			}
+		}
+	}
+}
