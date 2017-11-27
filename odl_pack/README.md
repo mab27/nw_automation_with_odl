@@ -93,8 +93,6 @@ mab@mab-infra:~$
 - This action will be called on the various workflow that we are using to communicate with the ODL controller, including mounting / unmouunting a device.
 
 
-### Example 1: Vyatta vRouter:
-
 - Check the template files:
 
 ```
@@ -104,16 +102,18 @@ http://{{ controller_ip }}:8181/restconf/config/network-topology:network-topolog
 mab@mab-infra:~$ 
 mab@mab-infra:~$ cat /home/mab/mab_automate/nw_automation_with_odl/template_files/body_mount.j2 
 <node xmlns="urn:TBD:params:xml:ns:yang:network-topology">
-	<node-id>{{ device_name }}</node-id>
-	<host xmlns="urn:opendaylight:netconf-node-topology">{{ device_ip }}</host>
-	<port xmlns="urn:opendaylight:netconf-node-topology">{{ device_ssh_port }}</port>
-	<username xmlns="urn:opendaylight:netconf-node-topology">{{ device_username }}</username>
-	<password xmlns="urn:opendaylight:netconf-node-topology">{{ device_password }}</password>
-	<tcp-only xmlns="urn:opendaylight:netconf-node-topology">false</tcp-only>
-	<keepalive-delay xmlns="urn:opendaylight:netconf-node-topology">0</keepalive-delay>
+  <node-id>{{ device_name }}</node-id>
+  <host xmlns="urn:opendaylight:netconf-node-topology">{{ device_ip }}</host>
+  <port xmlns="urn:opendaylight:netconf-node-topology">{{ device_ssh_port }}</port>
+  <username xmlns="urn:opendaylight:netconf-node-topology">{{ device_username }}</username>
+  <password xmlns="urn:opendaylight:netconf-node-topology">{{ device_password }}</password>
+  <tcp-only xmlns="urn:opendaylight:netconf-node-topology">false</tcp-only>
+  <keepalive-delay xmlns="urn:opendaylight:netconf-node-topology">0</keepalive-delay>
 </node>
 mab@mab-infra:~$ 
 ```
+
+### Example 1: Vyatta vRouter:
 
 - Executes the Mount Workflow:
 ```
@@ -230,20 +230,68 @@ mab@mab-infra:~$
 
 ### Example 2: SLX switch:
 
-- Check the template files:
-
-```
-
-```
 
 - Executes the Mount Workflow:
 ```
-
+mab@mab-infra:~$ st2 run odl.mount device_name=spine1 device_ip=192.168.254.115 device_username=admin device_password=Fibrane123
+..............
+id: 5a1c2f227cae220c046518e9
+action.ref: odl.mount
+parameters: 
+  device_ip: 192.168.254.115
+  device_name: spine1
+  device_password: '********'
+  device_username: admin
+status: succeeded
+result_task: send_call
+result: 
+  body: ''
+  headers:
+    Content-Length: '0'
+    Expires: Thu, 01 Jan 1970 00:00:00 GMT
+    Server: Jetty(8.1.19.v20160209)
+    Set-Cookie: JSESSIONID=yd59lx3gdzvq1wr40ehptsewu;Path=/restconf, rememberMe=deleteMe; Path=/restconf; Max-Age=0; Expires=Sun, 26-Nov-2017 15:28:39 GMT
+  parsed: false
+  status_code: 201
+start_timestamp: 2017-11-27T15:28:34.065207Z
+end_timestamp: 2017-11-27T15:29:01.185917Z
++--------------------------+------------------------+----------------+----------------+-------------------------------+
+| id                       | status                 | task           | action         | start_timestamp               |
++--------------------------+------------------------+----------------+----------------+-------------------------------+
+| 5a1c2f227cae220c046518ec | succeeded (1s elapsed) | send_test_call | core.http      | Mon, 27 Nov 2017 15:28:34 UTC |
+| 5a1c2f237cae220c046518ee | succeeded (2s elapsed) | render_url     | default.render | Mon, 27 Nov 2017 15:28:35 UTC |
+| 5a1c2f257cae220c046518f0 | succeeded (2s elapsed) | render_body    | default.render | Mon, 27 Nov 2017 15:28:37 UTC |
+| 5a1c2f277cae220c046518f2 | succeeded (0s elapsed) | send_call      | core.http      | Mon, 27 Nov 2017 15:28:39 UTC |
++--------------------------+------------------------+----------------+----------------+-------------------------------+
+mab@mab-infra:~$ 
+mab@mab-infra:~$ st2 execution get 5a1c2f277cae220c046518f2
+id: 5a1c2f277cae220c046518f2
+status: succeeded (0s elapsed)
+parameters: 
+  body: <node xmlns="urn:TBD:params:xml:ns:yang:network-topology">\n\t<node-id>spine1</node-id>\n\t<host xmlns="urn:opendaylight:netconf-node-topology">192.168.254.115</host>\n\t<port xmlns="urn:opendaylight:netconf-node-topology">830</port>\n\t<username xmlns="urn:opendaylight:netconf-node-topology">admin</username>\n\t<password xmlns="urn:opendaylight:netconf-node-topology">Fibrane123</password>\n\t<tcp-only xmlns="urn:opendaylight:netconf-node-topology">false</tcp-only>\n\t<keepalive-delay xmlns="urn:opendaylight:netconf-node-topology">0</keepalive-delay>\n</node>
+  headers:
+    accept: application/xml
+    content-type: application/xml
+  method: PUT
+  password: admin
+  url: http://localhost:8181/restconf/config/network-topology:network-topology/topology/topology-netconf/node/spine1
+  username: admin
+result: 
+  body: ''
+  headers:
+    Content-Length: '0'
+    Expires: Thu, 01 Jan 1970 00:00:00 GMT
+    Server: Jetty(8.1.19.v20160209)
+    Set-Cookie: JSESSIONID=yd59lx3gdzvq1wr40ehptsewu;Path=/restconf, rememberMe=deleteMe; Path=/restconf; Max-Age=0; Expires=Sun, 26-Nov-2017 15:28:39 GMT
+  parsed: false
+  status_code: 201
+mab@mab-infra:~$ 
 ```
 
 - Check that device is mounted on ODL :
 	- By going to the API doc explorer of the controller (http://localhost:8181/apidoc/explorer) you get the list of mounted devices as well as all the auto-generated RESTCONF methods based on the YANG modules of the devices. This is done via [Swagger](https://swagger.io/).
 
+![odl_mounted_device_spine1](images/odl_mounted_device_spine1.png)
 
 - Executes the unmount workflow:
 ```
